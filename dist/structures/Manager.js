@@ -14,14 +14,12 @@ function check(options) {
     if (typeof options.clientId !== "undefined" &&
         !/^\d+$/.test(options.clientId))
         throw new TypeError('Manager option "clientId" must be a non-empty string.');
-    if (typeof options.nodes !== "undefined" &&
-        !Array.isArray(options.nodes))
+    if (typeof options.nodes !== "undefined" && !Array.isArray(options.nodes))
         throw new TypeError('Manager option "nodes" must be a array.');
     if (typeof options.shards !== "undefined" &&
         typeof options.shards !== "number")
         throw new TypeError('Manager option "shards" must be a number.');
-    if (typeof options.plugins !== "undefined" &&
-        !Array.isArray(options.plugins))
+    if (typeof options.plugins !== "undefined" && !Array.isArray(options.plugins))
         throw new TypeError('Manager option "plugins" must be a Plugin array.');
     if (typeof options.autoPlay !== "undefined" &&
         typeof options.autoPlay !== "boolean")
@@ -43,8 +41,8 @@ function check(options) {
 class Manager extends events_1.EventEmitter {
     static DEFAULT_SOURCES = {
         "youtube music": "ytmsearch",
-        "youtube": "ytsearch",
-        "soundcloud": "scsearch"
+        youtube: "ytsearch",
+        soundcloud: "scsearch",
     };
     /** The map of players. */
     players = new collection_1.Collection();
@@ -151,7 +149,7 @@ class Manager extends events_1.EventEmitter {
             }
             const res = await node
                 .makeRequest(`/loadtracks?identifier=${encodeURIComponent(search)}`)
-                .catch(err => reject(err));
+                .catch((err) => reject(err));
             if (!res) {
                 return reject(new Error("Query not found."));
             }
@@ -163,10 +161,10 @@ class Manager extends events_1.EventEmitter {
             if (result.loadType === "PLAYLIST_LOADED") {
                 result.playlist = {
                     name: res.playlistInfo.name,
-                    selectedTrack: res.playlistInfo.selectedTrack === -1 ? null :
-                        Utils_1.TrackUtils.build(res.tracks[res.playlistInfo.selectedTrack], requester),
-                    duration: result.tracks
-                        .reduce((acc, cur) => acc + (cur.duration || 0), 0),
+                    selectedTrack: res.playlistInfo.selectedTrack === -1
+                        ? null
+                        : Utils_1.TrackUtils.build(res.tracks[res.playlistInfo.selectedTrack], requester),
+                    duration: result.tracks.reduce((acc, cur) => acc + (cur.duration || 0), 0),
                 };
             }
             return resolve(result);
@@ -181,13 +179,14 @@ class Manager extends events_1.EventEmitter {
             const node = this.nodes.first();
             if (!node)
                 throw new Error("No available nodes.");
-            const res = await node.makeRequest(`/decodetracks`, r => {
+            const res = await node
+                .makeRequest(`/decodetracks`, (r) => {
                 r.method = "POST";
                 r.body = JSON.stringify(tracks);
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 r.headers["Content-Type"] = "application/json";
             })
-                .catch(err => reject(err));
+                .catch((err) => reject(err));
             if (!res) {
                 return reject(new Error("No data returned from query."));
             }
@@ -252,10 +251,11 @@ class Manager extends events_1.EventEmitter {
      * @param data
      */
     updateVoiceState(data) {
-        if ("t" in data && !["VOICE_STATE_UPDATE", "VOICE_SERVER_UPDATE"].includes(data.t))
+        if ("t" in data &&
+            !["VOICE_STATE_UPDATE", "VOICE_SERVER_UPDATE"].includes(data.t))
             return;
         const update = "d" in data ? data.d : data;
-        if (!update || !("token" in update) && !("session_id" in update))
+        if (!update || (!("token" in update) && !("session_id" in update)))
             return;
         const player = this.players.get(update.guild_id);
         if (!player)
@@ -285,8 +285,21 @@ class Manager extends events_1.EventEmitter {
                 player.pause(true);
             }
         }
-        if (REQUIRED_KEYS.every(key => key in player.voiceState)) {
-            player.node.send(player.voiceState);
+        if (REQUIRED_KEYS.every((key) => key in player.voiceState)) {
+            /* Begining of modified code */
+            if (player.node.options.rest) {
+                player.node.rest.updatePlayer(player.guild, {
+                    voice: {
+                        sessionId: player.voiceState.sessionId,
+                        token: player.voiceState.event.token,
+                        endpoint: player.voiceState.event.endpoint,
+                    },
+                });
+            }
+            else {
+                player.node.send(player.voiceState);
+            }
+            /* End of modified code */
         }
     }
 }
