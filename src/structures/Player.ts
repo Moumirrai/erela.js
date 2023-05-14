@@ -333,6 +333,7 @@ export class Player {
     if (this.node.options.rest) {
       this.node?.rest.updatePlayer(this.guild, {
         encodedTrack: this.queue.current.track,
+        position: playOptions.startTime || 0,
         ...finalOptions,
       });
     } else {
