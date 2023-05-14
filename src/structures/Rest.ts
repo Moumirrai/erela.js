@@ -265,7 +265,7 @@ export type UpdatePlayerOptions = {
   endTime?: number;
   volume?: number;
   paused?: boolean;
-  //filters?: FilterOptions;
+  filters?: FilterOptions;
   voice?: {
     sessionId: string;
     token: string;
@@ -273,3 +273,28 @@ export type UpdatePlayerOptions = {
   };
   noReplace?: boolean;
 };
+
+export type FilterOptions = {
+  //TODO: add all filters
+  //channelMix?: ChannelMixOptions;
+  //distortion?: DistortionOptions;
+
+  /**
+   * 15 bands [0-14]
+   * 25 Hz, 40 Hz, 63 Hz, 100 Hz, 160 Hz, 250 Hz, 400 Hz, 630 Hz, 1 kHz, 1.6 kHz, 2.5 kHz, 4 kHz, 6.3 kHz, 10 kHz, 16 kHz
+   */
+
+  /*
+  equalizer?: number[];
+
+  karaoke?: KaraokeOptions;
+  lowPass?: LowPassOptions;
+  rotation?: RotationOptions;
+  timescale?: TimescaleOptions;
+  tremolo?: TremoloOptions;
+  vibrato?: VibratoOptions;
+  */
+  volume?: number;
+
+  //[key: string]: unknown;
+}
