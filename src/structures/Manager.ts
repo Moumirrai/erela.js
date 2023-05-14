@@ -25,18 +25,19 @@ function check(options: ManagerOptions) {
   if (!options) throw new TypeError("ManagerOptions must not be empty.");
 
   if (typeof options.send !== "function")
-    throw new TypeError('Manager option "send" must be present and a function.');
+    throw new TypeError(
+      'Manager option "send" must be present and a function.'
+    );
 
   if (
     typeof options.clientId !== "undefined" &&
     !/^\d+$/.test(options.clientId)
   )
-    throw new TypeError('Manager option "clientId" must be a non-empty string.');
+    throw new TypeError(
+      'Manager option "clientId" must be a non-empty string.'
+    );
 
-  if (
-    typeof options.nodes !== "undefined" &&
-    !Array.isArray(options.nodes)
-  )
+  if (typeof options.nodes !== "undefined" && !Array.isArray(options.nodes))
     throw new TypeError('Manager option "nodes" must be a array.');
 
   if (
@@ -45,10 +46,7 @@ function check(options: ManagerOptions) {
   )
     throw new TypeError('Manager option "shards" must be a number.');
 
-  if (
-    typeof options.plugins !== "undefined" &&
-    !Array.isArray(options.plugins)
-  )
+  if (typeof options.plugins !== "undefined" && !Array.isArray(options.plugins))
     throw new TypeError('Manager option "plugins" must be a Plugin array.');
 
   if (
@@ -61,19 +59,23 @@ function check(options: ManagerOptions) {
     typeof options.trackPartial !== "undefined" &&
     !Array.isArray(options.trackPartial)
   )
-    throw new TypeError('Manager option "trackPartial" must be a string array.');
+    throw new TypeError(
+      'Manager option "trackPartial" must be a string array.'
+    );
 
   if (
     typeof options.clientName !== "undefined" &&
     typeof options.clientName !== "string"
   )
     throw new TypeError('Manager option "clientName" must be a string.');
-  
+
   if (
     typeof options.defaultSearchPlatform !== "undefined" &&
     typeof options.defaultSearchPlatform !== "string"
   )
-    throw new TypeError('Manager option "defaultSearchPlatform" must be a string.');
+    throw new TypeError(
+      'Manager option "defaultSearchPlatform" must be a string.'
+    );
 }
 
 export interface Manager {
@@ -222,9 +224,9 @@ export interface Manager {
 export class Manager extends EventEmitter {
   public static readonly DEFAULT_SOURCES: Record<SearchPlatform, string> = {
     "youtube music": "ytmsearch",
-    "youtube": "ytsearch",
-    "soundcloud": "scsearch"
-  }
+    youtube: "ytsearch",
+    soundcloud: "scsearch",
+  };
 
   /** The map of players. */
   public readonly players = new Collection<string, Player>();
@@ -287,7 +289,9 @@ export class Manager extends EventEmitter {
     if (this.options.plugins) {
       for (const [index, plugin] of this.options.plugins.entries()) {
         if (!(plugin instanceof Plugin))
-          throw new RangeError(`Plugin at index ${index} does not extend Plugin.`);
+          throw new RangeError(
+            `Plugin at index ${index} does not extend Plugin.`
+          );
         plugin.load(this);
       }
     }
@@ -341,7 +345,10 @@ export class Manager extends EventEmitter {
       if (!node) throw new Error("No available nodes.");
 
       const _query: SearchQuery = typeof query === "string" ? { query } : query;
-      const _source = Manager.DEFAULT_SOURCES[_query.source ?? this.options.defaultSearchPlatform] ?? _query.source;
+      const _source =
+        Manager.DEFAULT_SOURCES[
+          _query.source ?? this.options.defaultSearchPlatform
+        ] ?? _query.source;
 
       let search = _query.query;
       if (!/^https?:\/\//.test(search)) {
@@ -349,8 +356,10 @@ export class Manager extends EventEmitter {
       }
 
       const res = await node
-        .makeRequest<LavalinkResult>(`/loadtracks?identifier=${encodeURIComponent(search)}`)
-        .catch(err => reject(err));
+        .makeRequest<LavalinkResult>(
+          `/loadtracks?identifier=${encodeURIComponent(search)}`
+        )
+        .catch((err) => reject(err));
 
       if (!res) {
         return reject(new Error("Query not found."));
@@ -359,21 +368,26 @@ export class Manager extends EventEmitter {
       const result: SearchResult = {
         loadType: res.loadType,
         exception: res.exception ?? null,
-        tracks: res.tracks?.map((track: TrackData) =>
-          TrackUtils.build(track, requester)
-        ) ?? [],
+        tracks:
+          res.tracks?.map((track: TrackData) =>
+            TrackUtils.build(track, requester)
+          ) ?? [],
       };
 
       if (result.loadType === "PLAYLIST_LOADED") {
         result.playlist = {
           name: res.playlistInfo.name,
-          selectedTrack: res.playlistInfo.selectedTrack === -1 ? null :
-            TrackUtils.build(
-              res.tracks[res.playlistInfo.selectedTrack],
-              requester
-            ),
-          duration: result.tracks
-            .reduce((acc: number, cur: Track) => acc + (cur.duration || 0), 0),
+          selectedTrack:
+            res.playlistInfo.selectedTrack === -1
+              ? null
+              : TrackUtils.build(
+                  res.tracks[res.playlistInfo.selectedTrack],
+                  requester
+                ),
+          duration: result.tracks.reduce(
+            (acc: number, cur: Track) => acc + (cur.duration || 0),
+            0
+          ),
         };
       }
 
@@ -390,13 +404,14 @@ export class Manager extends EventEmitter {
       const node = this.nodes.first();
       if (!node) throw new Error("No available nodes.");
 
-      const res = await node.makeRequest<TrackData[]>(`/decodetracks`, r => {
-        r.method = "POST";
-        r.body = JSON.stringify(tracks);
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        r.headers!["Content-Type"] = "application/json";
-      })
-        .catch(err => reject(err));
+      const res = await node
+        .makeRequest<TrackData[]>(`/decodetracks`, (r) => {
+          r.method = "POST";
+          r.body = JSON.stringify(tracks);
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          r.headers!["Content-Type"] = "application/json";
+        })
+        .catch((err) => reject(err));
 
       if (!res) {
         return reject(new Error("No data returned from query."));
@@ -411,7 +426,7 @@ export class Manager extends EventEmitter {
    * @param track
    */
   public async decodeTrack(track: string): Promise<TrackData> {
-    const res = await this.decodeTracks([ track ]);
+    const res = await this.decodeTracks([track]);
     return res[0];
   }
 
@@ -462,8 +477,8 @@ export class Manager extends EventEmitter {
   public destroyNode(identifier: string): void {
     const node = this.nodes.get(identifier);
     if (!node) return;
-    node.destroy()
-    this.nodes.delete(identifier)
+    node.destroy();
+    this.nodes.delete(identifier);
   }
 
   /**
@@ -471,10 +486,14 @@ export class Manager extends EventEmitter {
    * @param data
    */
   public updateVoiceState(data: VoicePacket | VoiceServer | VoiceState): void {
-    if ("t" in data && !["VOICE_STATE_UPDATE", "VOICE_SERVER_UPDATE"].includes(data.t)) return;
+    if (
+      "t" in data &&
+      !["VOICE_STATE_UPDATE", "VOICE_SERVER_UPDATE"].includes(data.t)
+    )
+      return;
 
     const update: VoiceServer | VoiceState = "d" in data ? data.d : data;
-    if (!update || !("token" in update) && !("session_id" in update)) return;
+    if (!update || (!("token" in update) && !("session_id" in update))) return;
 
     const player = this.players.get(update.guild_id) as Player;
     if (!player) return;
@@ -485,13 +504,18 @@ export class Manager extends EventEmitter {
     } else {
       /* voice state update */
       if (update.user_id !== this.options.clientId) {
-        return;      
+        return;
       }
 
       if (update.channel_id) {
         if (player.voiceChannel !== update.channel_id) {
           /* we moved voice channels. */
-          this.emit("playerMove", player, player.voiceChannel, update.channel_id);
+          this.emit(
+            "playerMove",
+            player,
+            player.voiceChannel,
+            update.channel_id
+          );
         }
 
         player.voiceState.sessionId = update.session_id;
@@ -505,8 +529,20 @@ export class Manager extends EventEmitter {
       }
     }
 
-    if (REQUIRED_KEYS.every(key => key in player.voiceState)) {
-      player.node.send(player.voiceState);
+    if (REQUIRED_KEYS.every((key) => key in player.voiceState)) {
+      /* Begining of modified code */
+      if (player.node.options.rest) {
+        player.node.rest.updatePlayer(player.guild, {
+          voice: {
+            sessionId: player.voiceState.sessionId!,
+            token: player.voiceState.event!.token!,
+            endpoint: player.voiceState.event!.endpoint!,
+          },
+        });
+      } else {
+        player.node.send(player.voiceState);
+      }
+      /* End of modified code */
     }
   }
 }
