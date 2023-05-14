@@ -114,7 +114,10 @@ export class Player {
     check(options);
 
     this.guild = options.guild;
-    this.voiceState = Object.assign({ op: "voiceUpdate", guildId: options.guild });
+    this.voiceState = Object.assign({
+      op: "voiceUpdate",
+      guildId: options.guild,
+    });
 
     if (options.voiceChannel) this.voiceChannel = options.voiceChannel;
     if (options.textChannel) this.textChannel = options.textChannel;
@@ -147,13 +150,17 @@ export class Player {
    */
   public setEQ(...bands: EqualizerBand[]): this {
     // Hacky support for providing an array
-    if (Array.isArray(bands[0])) bands = bands[0] as unknown as EqualizerBand[]
+    if (Array.isArray(bands[0])) bands = bands[0] as unknown as EqualizerBand[];
 
-    if (!bands.length || !bands.every(
+    if (
+      !bands.length ||
+      !bands.every(
         (band) => JSON.stringify(Object.keys(band).sort()) === '["band","gain"]'
       )
     )
-      throw new TypeError("Bands must be a non-empty object array containing 'band' and 'gain' properties.");
+      throw new TypeError(
+        "Bands must be a non-empty object array containing 'band' and 'gain' properties."
+      );
 
     for (const { band, gain } of bands) this.bands[band] = gain;
 
@@ -226,12 +233,16 @@ export class Player {
     if (disconnect) {
       this.disconnect();
     }
-
-    this.node.send({
-      op: "destroy",
-      guildId: this.guild,
-    });
-
+    /* Begin modified */
+    if (this.node.options.rest) {
+      this.node.rest.destroyPlayer(this.guild);
+    } else {
+      this.node.send({
+        op: "destroy",
+        guildId: this.guild,
+      });
+    }
+    /* Modified end */
     this.manager.emit("playerDestroy", this);
     this.manager.players.delete(this.guild);
   }
@@ -281,7 +292,10 @@ export class Player {
    * @param track
    * @param options
    */
-  public async play(track: Track | UnresolvedTrack, options: PlayOptions): Promise<void>;
+  public async play(
+    track: Track | UnresolvedTrack,
+    options: PlayOptions
+  ): Promise<void>;
   public async play(
     optionsOrTrack?: PlayOptions | Track | UnresolvedTrack,
     playOptions?: PlayOptions
@@ -306,26 +320,36 @@ export class Player {
 
     if (TrackUtils.isUnresolvedTrack(this.queue.current)) {
       try {
-        this.queue.current = await TrackUtils.getClosestTrack(this.queue.current as UnresolvedTrack);
+        this.queue.current = await TrackUtils.getClosestTrack(
+          this.queue.current as UnresolvedTrack
+        );
       } catch (error) {
         this.manager.emit("trackError", this, this.queue.current, error);
         if (this.queue[0]) return this.play(this.queue[0]);
         return;
       }
     }
+    /* Begin modified */
+    if (this.node.options.rest) {
+      this.node?.rest.updatePlayer(this.guild, {
+        encodedTrack: this.queue.current.track,
+        ...finalOptions,
+      });
+    } else {
+      const options = {
+        op: "play",
+        guildId: this.guild,
+        track: this.queue.current.track,
+        ...finalOptions,
+      };
 
-    const options = {
-      op: "play",
-      guildId: this.guild,
-      track: this.queue.current.track,
-      ...finalOptions,
-    };
+      if (typeof options.track !== "string") {
+        options.track = (options.track as Track).track;
+      }
 
-    if (typeof options.track !== "string") {
-      options.track = (options.track as Track).track;
+      await this.node.send(options);
     }
-
-    await this.node.send(options);
+    /* Modified end */
   }
 
   /**
@@ -388,15 +412,22 @@ export class Player {
   /** Stops the current track, optionally give an amount to skip to, e.g 5 would play the 5th song. */
   public stop(amount?: number): this {
     if (typeof amount === "number" && amount > 1) {
-      if (amount > this.queue.length) throw new RangeError("Cannot skip more than the queue length.");
+      if (amount > this.queue.length)
+        throw new RangeError("Cannot skip more than the queue length.");
       this.queue.splice(0, amount - 1);
     }
-
-    this.node.send({
-      op: "stop",
-      guildId: this.guild,
-    });
-
+    /* Begin modified */
+    if (this.node.options.rest) {
+      this.node.rest.updatePlayer(this.guild, {
+        encodedTrack: null,
+      });
+    } else {
+      this.node.send({
+        op: "stop",
+        guildId: this.guild,
+      });
+    }
+    /* Modified end */
     return this;
   }
 
@@ -413,13 +444,19 @@ export class Player {
 
     this.playing = !pause;
     this.paused = pause;
-
-    this.node.send({
-      op: "pause",
-      guildId: this.guild,
-      pause,
-    });
-
+    /* Begin modified */
+    if (this.node.options.rest) {
+      this.node.rest.updatePlayer(this.guild, {
+        paused: pause,
+      });
+    } else {
+      this.node.send({
+        op: "pause",
+        guildId: this.guild,
+        pause,
+      });
+    }
+    /* Modified end */
     return this;
   }
 
@@ -438,11 +475,19 @@ export class Player {
       position = Math.max(Math.min(position, this.queue.current.duration), 0);
 
     this.position = position;
-    this.node.send({
-      op: "seek",
-      guildId: this.guild,
-      position,
-    });
+    /* Begin modified */
+    if (this.node.options.rest) {
+      this.node.rest.updatePlayer(this.guild, {
+        position,
+      });
+    } else {
+      this.node.send({
+        op: "seek",
+        guildId: this.guild,
+        position,
+      });
+    }
+    /* Modified end */
 
     return this;
   }

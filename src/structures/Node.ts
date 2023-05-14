@@ -2,6 +2,7 @@
 import WebSocket from "ws";
 import { Dispatcher, Pool } from "undici";
 import { Manager } from "./Manager";
+import { Rest, Endpoints } from "./Rest"; //MODIFIED
 import { Player, Track, UnresolvedTrack } from "./Player";
 import {
   PlayerEvent,
@@ -17,22 +18,17 @@ import {
 function check(options: NodeOptions) {
   if (!options) throw new TypeError("NodeOptions must not be empty.");
 
-  if (
-    typeof options.host !== "string" ||
-    !/.+/.test(options.host)
-  )
-    throw new TypeError('Node option "host" must be present and be a non-empty string.');
+  if (typeof options.host !== "string" || !/.+/.test(options.host))
+    throw new TypeError(
+      'Node option "host" must be present and be a non-empty string.'
+    );
 
-  if (
-    typeof options.port !== "undefined" &&
-    typeof options.port !== "number"
-  )
+  if (typeof options.port !== "undefined" && typeof options.port !== "number")
     throw new TypeError('Node option "port" must be a number.');
 
   if (
     typeof options.password !== "undefined" &&
-    (typeof options.password !== "string" ||
-    !/.+/.test(options.password))
+    (typeof options.password !== "string" || !/.+/.test(options.password))
   )
     throw new TypeError('Node option "password" must be a non-empty string.');
 
@@ -70,13 +66,15 @@ function check(options: NodeOptions) {
 export class Node {
   /** The socket for the node. */
   public socket: WebSocket | null = null;
+  /** Rest instance for the node */ //MODIFIED
+  public rest: Rest | null = null; //MODIFIED
   /** The HTTP pool used for rest calls. */
   public http: Pool;
   /** The amount of rest calls the node has made. */
   public calls = 0;
   /** The stats for the node. */
   public stats: NodeStats;
-  public manager: Manager
+  public manager: Manager; //MODIFIED
 
   private static _manager: Manager;
   private reconnectTimeout?: NodeJS.Timeout;
@@ -125,7 +123,10 @@ export class Node {
       this.options.port = 443;
     }
 
-    this.http = new Pool(`http${this.options.secure ? "s" : ""}://${this.address}`, this.options.poolOptions);
+    this.http = new Pool(
+      `http${this.options.secure ? "s" : ""}://${this.address}`,
+      this.options.poolOptions
+    );
 
     this.options.identifier = options.identifier || options.host;
     this.stats = {
@@ -150,10 +151,12 @@ export class Node {
       },
     };
 
+    this.rest = new Rest(this); //MODIFIED
+
     this.manager.nodes.set(this.options.identifier, this);
     this.manager.emit("nodeCreate", this);
   }
-  
+
   /** Connects to the Node. */
   public connect(): void {
     if (this.connected) return;
@@ -165,7 +168,16 @@ export class Node {
       "Client-Name": this.manager.options.clientName,
     };
 
-    this.socket = new WebSocket(`ws${this.options.secure ? "s" : ""}://${this.address}`, { headers });
+    let wsUrl = `ws${this.options.secure ? "s" : ""}://${this.address}`; //MODIFIED
+
+    if (this.options.rest) { //MODIFIED
+      wsUrl += `/v${Endpoints.LAVALINK_API_VERSION}/websocket`; //MODIFIED
+    } //MODIFIED
+
+    this.socket = new WebSocket( 
+      wsUrl, //MODIFIED
+      { headers }
+    );
     this.socket.on("open", this.open.bind(this));
     this.socket.on("close", this.close.bind(this));
     this.socket.on("message", this.message.bind(this));
@@ -176,8 +188,8 @@ export class Node {
   public destroy(): void {
     if (!this.connected) return;
 
-    const players = this.manager.players.filter(p => p.node == this);
-    if (players.size) players.forEach(p => p.destroy());
+    const players = this.manager.players.filter((p) => p.node == this);
+    if (players.size) players.forEach((p) => p.destroy());
 
     this.socket.close(1000, "destroy");
     this.socket.removeAllListeners();
@@ -196,15 +208,18 @@ export class Node {
    * @param modify Used to modify the request before being sent
    * @returns The returned data
    */
-  public async makeRequest<T>(endpoint: string, modify?: ModifyRequest): Promise<T> {
+  public async makeRequest<T>(
+    endpoint: string,
+    modify?: ModifyRequest
+  ): Promise<T> {
     const options: Dispatcher.RequestOptions = {
       path: `/${endpoint.replace(/^\//gm, "")}`,
       method: "GET",
       headers: {
-        Authorization: this.options.password
+        Authorization: this.options.password,
       },
       headersTimeout: this.options.requestTimeout,
-    }
+    };
 
     modify?.(options);
 
@@ -236,7 +251,7 @@ export class Node {
       if (this.reconnectAttempts >= this.options.retryAmount) {
         const error = new Error(
           `Unable to connect after ${this.options.retryAmount} attempts.`
-        )
+        );
 
         this.manager.emit("nodeError", this, error);
         return this.destroy();
@@ -274,9 +289,14 @@ export class Node {
     this.manager.emit("nodeRaw", payload);
 
     switch (payload.op) {
+      case "ready": //MODIFIED
+        if (this.rest) { //MODIFIED
+          this.rest.sessionId = payload.sessionId; //MODIFIED
+        } //MODIFIED
+        break; //MODIFIED
       case "stats":
         delete payload.op;
-        this.stats = ({ ...payload } as unknown) as NodeStats;
+        this.stats = { ...payload } as unknown as NodeStats;
         break;
       case "playerUpdate":
         const player = this.manager.players.get(payload.guildId);
@@ -320,13 +340,21 @@ export class Node {
     }
   }
 
-  protected trackStart(player: Player, track: Track, payload: TrackStartEvent): void {
+  protected trackStart(
+    player: Player,
+    track: Track,
+    payload: TrackStartEvent
+  ): void {
     player.playing = true;
     player.paused = false;
     this.manager.emit("trackStart", player, track, payload);
   }
 
-  protected trackEnd(player: Player, track: Track, payload: TrackEndEvent): void {
+  protected trackEnd(
+    player: Player,
+    track: Track,
+    payload: TrackEndEvent
+  ): void {
     // If a track had an error while starting
     if (["LOAD_FAILED", "CLEAN_UP"].includes(payload.reason)) {
       player.queue.previous = player.queue.current;
@@ -390,14 +418,21 @@ export class Node {
     if (!player.queue.length) return this.queueEnd(player, track, payload);
   }
 
-
-  protected queueEnd(player: Player, track: Track, payload: TrackEndEvent): void {
+  protected queueEnd(
+    player: Player,
+    track: Track,
+    payload: TrackEndEvent
+  ): void {
     player.queue.current = null;
     player.playing = false;
     this.manager.emit("queueEnd", player, track, payload);
   }
 
-  protected trackStuck(player: Player, track: Track, payload: TrackStuckEvent): void {
+  protected trackStuck(
+    player: Player,
+    track: Track,
+    payload: TrackStuckEvent
+  ): void {
     player.stop();
     this.manager.emit("trackStuck", player, track, payload);
   }
@@ -438,6 +473,8 @@ export interface NodeOptions {
   requestTimeout?: number;
   /** Options for the undici http pool used for http requests */
   poolOptions?: Pool.Options;
+  /** Whether to use rest */
+  rest?: boolean; //MODIFIED
 }
 
 export interface NodeStats {
