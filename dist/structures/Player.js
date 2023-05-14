@@ -285,9 +285,7 @@ class Player {
         /* Begin modified */
         if (this.node.options.rest) {
             this.node.rest.updatePlayer(this.guild, {
-                filters: {
-                    volume: this.volume,
-                },
+                volume: this.volume,
             });
         }
         else {
