@@ -497,12 +497,20 @@ type UpdatePlayerOptions = {
     endTime?: number;
     volume?: number;
     paused?: boolean;
+    filters?: FilterOptions;
     voice?: {
         sessionId: string;
         token: string;
         endpoint: string;
     };
     noReplace?: boolean;
+};
+type FilterOptions = {
+    /**
+     * 15 bands [0-14]
+     * 25 Hz, 40 Hz, 63 Hz, 100 Hz, 160 Hz, 250 Hz, 400 Hz, 630 Hz, 1 kHz, 1.6 kHz, 2.5 kHz, 4 kHz, 6.3 kHz, 10 kHz, 16 kHz
+     */
+    volume?: number;
 };
 
 declare class Node {
@@ -869,4 +877,4 @@ interface LavalinkResult {
     };
 }
 
-export { CPUStats, Endpoints, EqualizerBand, Exception, Extendable, FrameStats, Info, LavalinkRESTError, LavalinkResult, LoadTracksResult, LoadType, Manager, ManagerOptions, MemoryStats, ModifyRequest, Node, NodeMessage, NodeOptions, NodeStats, Payload, PlayOptions, Player, PlayerEvent, PlayerEventType, PlayerEvents, PlayerOptions, PlayerUpdate, PlaylistInfo, Plugin, Queue, RequestOptions, Rest, RoutePlannerDetails, RoutePlannerStatus, SearchPlatform, SearchQuery, SearchResult, Severity, Sizes, State, Structure, Track, TrackData, TrackDataInfo, TrackEndEvent, TrackEndReason, TrackExceptionEvent, TrackStartEvent, TrackStuckEvent, TrackUtils, UnresolvedQuery, UnresolvedTrack, UpdatePlayerOptions, VoicePacket, VoiceServer, VoiceState, WebSocketClosedEvent };
+export { CPUStats, Endpoints, EqualizerBand, Exception, Extendable, FilterOptions, FrameStats, Info, LavalinkRESTError, LavalinkResult, LoadTracksResult, LoadType, Manager, ManagerOptions, MemoryStats, ModifyRequest, Node, NodeMessage, NodeOptions, NodeStats, Payload, PlayOptions, Player, PlayerEvent, PlayerEventType, PlayerEvents, PlayerOptions, PlayerUpdate, PlaylistInfo, Plugin, Queue, RequestOptions, Rest, RoutePlannerDetails, RoutePlannerStatus, SearchPlatform, SearchQuery, SearchResult, Severity, Sizes, State, Structure, Track, TrackData, TrackDataInfo, TrackEndEvent, TrackEndReason, TrackExceptionEvent, TrackStartEvent, TrackStuckEvent, TrackUtils, UnresolvedQuery, UnresolvedTrack, UpdatePlayerOptions, VoicePacket, VoiceServer, VoiceState, WebSocketClosedEvent };

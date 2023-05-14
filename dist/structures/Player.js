@@ -251,7 +251,11 @@ class Player {
         if (this.node.options.rest) {
             this.node?.rest.updatePlayer(this.guild, {
                 encodedTrack: this.queue.current.track,
-                position: playOptions ? playOptions.startTime ? playOptions.startTime : 0 : 0,
+                position: playOptions
+                    ? playOptions.startTime
+                        ? playOptions.startTime
+                        : 0
+                    : 0,
                 ...finalOptions,
             });
         }
@@ -278,11 +282,22 @@ class Player {
         if (isNaN(volume))
             throw new TypeError("Volume must be a number.");
         this.volume = Math.max(Math.min(volume, 1000), 0);
-        this.node.send({
-            op: "volume",
-            guildId: this.guild,
-            volume: this.volume,
-        });
+        /* Begin modified */
+        if (this.node.options.rest) {
+            this.node.rest.updatePlayer(this.guild, {
+                filters: {
+                    volume: this.volume,
+                },
+            });
+        }
+        else {
+            this.node.send({
+                op: "volume",
+                guildId: this.guild,
+                volume: this.volume,
+            });
+        }
+        /* Modified end */
         return this;
     }
     /**
