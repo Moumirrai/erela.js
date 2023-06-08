@@ -844,6 +844,8 @@ interface SearchResult {
     loadType: LoadType;
     /** The array of tracks from the result. */
     tracks: Track[];
+    /** Origianal query */
+    query: string;
     /** The playlist info if the load type is PLAYLIST_LOADED. */
     playlist?: PlaylistInfo;
     /** The exception when searching if one. */
