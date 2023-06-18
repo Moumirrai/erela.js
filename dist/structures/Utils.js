@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Plugin = exports.Structure = exports.TrackUtils = void 0;
+const difflib_1 = require("difflib");
 /** @hidden */
 const TRACK_SYMBOL = Symbol("track"), 
 /** @hidden */
@@ -138,34 +139,49 @@ class TrackUtils {
         });
         return unresolvedTrack;
     }
+    /**
+     * Formats the title of a track to remove the author and the identifier.
+     * @param title
+     * @param symbol
+     * @returns formatted title
+    */
+    static formatTitle(title, symbol) {
+        const symbolIndex = title.indexOf(` ${symbol}`);
+        const dashIndex = title.indexOf(" - ");
+        const endIndex = Math.min(symbolIndex >= 0 ? symbolIndex : title.length, dashIndex >= 0 ? dashIndex : title.length);
+        return title.slice(0, endIndex);
+    }
+    /**
+     * Modified version of the `getClosest` method for more accurate results.
+     * by Moumirrai
+     * @param unresolvedTrack
+     * @returns track
+     */
     static async getClosestTrack(unresolvedTrack) {
         if (!TrackUtils.manager)
             throw new RangeError("Manager has not been initiated.");
         if (!TrackUtils.isUnresolvedTrack(unresolvedTrack))
             throw new RangeError("Provided track is not a UnresolvedTrack.");
-        const query = [unresolvedTrack.author, unresolvedTrack.title].filter(str => !!str).join(" - ");
+        const query = `${this.formatTitle(this.formatTitle(unresolvedTrack.title, "("), "[")} ${unresolvedTrack.author}`;
         const res = await TrackUtils.manager.search(query, unresolvedTrack.requester);
         if (res.loadType !== "SEARCH_RESULT")
-            throw res.exception ?? {
+            throw (res.exception ?? {
                 message: "No tracks found.",
                 severity: "COMMON",
-            };
-        if (unresolvedTrack.author) {
-            const channelNames = [unresolvedTrack.author, `${unresolvedTrack.author} - Topic`];
-            const originalAudio = res.tracks.find(track => {
-                return (channelNames.some(name => new RegExp(`^${escapeRegExp(name)}$`, "i").test(track.author)) ||
-                    new RegExp(`^${escapeRegExp(unresolvedTrack.title)}$`, "i").test(track.title));
             });
-            if (originalAudio)
-                return originalAudio;
-        }
-        if (unresolvedTrack.duration) {
-            const sameDuration = res.tracks.find(track => (track.duration >= (unresolvedTrack.duration - 1500)) &&
-                (track.duration <= (unresolvedTrack.duration + 1500)));
-            if (sameDuration)
-                return sameDuration;
-        }
-        return res.tracks[0];
+        const titleWeight = 3;
+        const durationWeight = 5;
+        const titleMatcher = new difflib_1.SequenceMatcher(null, unresolvedTrack.title);
+        const matches = res.tracks.map((result) => {
+            const titleDiff = titleMatcher.ratio(result.title);
+            const durationDiff = Math.abs(unresolvedTrack.duration - result.duration);
+            return {
+                match: titleDiff * titleWeight - durationDiff * durationWeight,
+                result,
+            };
+        });
+        matches.sort((a, b) => b.match - a.match);
+        return matches[0].result;
     }
 }
 exports.TrackUtils = TrackUtils;

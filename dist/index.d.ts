@@ -270,6 +270,19 @@ declare abstract class TrackUtils {
      * @param requester
      */
     static buildUnresolved(query: string | UnresolvedQuery, requester?: unknown): UnresolvedTrack;
+    /**
+     * Formats the title of a track to remove the author and the identifier.
+     * @param title
+     * @param symbol
+     * @returns formatted title
+    */
+    static formatTitle(title: string, symbol: string): string;
+    /**
+     * Modified version of the `getClosest` method for more accurate results.
+     * by Moumirrai
+     * @param unresolvedTrack
+     * @returns track
+     */
     static getClosestTrack(unresolvedTrack: UnresolvedTrack): Promise<Track>;
 }
 /** Gets or extends structures to extend the built in, or already extended, classes to add more functionality. */
